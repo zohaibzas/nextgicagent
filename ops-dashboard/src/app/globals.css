@@ -1,0 +1,170 @@
+@import "tailwindcss";
+
+/* ── NEXTGIC AI OPS CENTER — Dark Operational Theme ──────────────────────── */
+/* Matches nextgic_dashboard.html: #0F1117 background, #1A1F2E cards        */
+
+:root {
+  /* Core backgrounds */
+  --bg-base: #0F1117;
+  --bg-card: #1A1F2E;
+  --bg-hover: #1E2535;
+  --bg-border: #1E2535;
+  --bg-input: #1E2535;
+  --bg-muted: #161B26;
+
+  /* Text colors */
+  --tx-primary: #F1F5F9;
+  --tx-secondary: #CBD5E1;
+  --tx-muted: #64748B;
+
+  /* Agent colors */
+  --agent-intake: #818CF8;
+  --agent-oos: #22C55E;
+  --agent-duplicate: #F59E0B;
+  --agent-new: #EC4899;
+
+  /* Status colors */
+  --status-success-bg: #052E16;
+  --status-success-text: #22C55E;
+  --status-failed-bg: #2D0A0A;
+  --status-failed-text: #EF4444;
+  --status-pending-bg: #1C1A05;
+  --status-pending-text: #F59E0B;
+  --status-skipped-bg: #1E2535;
+  --status-skipped-text: #64748B;
+
+  /* Brand */
+  --brand-primary: #818CF8;
+  --brand-primary-hover: #6366F1;
+
+  /* Shadcn/ui CSS variable overrides for dark mode */
+  --background: #0F1117;
+  --foreground: #F1F5F9;
+  --card: #1A1F2E;
+  --card-foreground: #F1F5F9;
+  --popover: #1A1F2E;
+  --popover-foreground: #F1F5F9;
+  --primary: #818CF8;
+  --primary-foreground: #0F1117;
+  --secondary: #1E2535;
+  --secondary-foreground: #F1F5F9;
+  --muted: #161B26;
+  --muted-foreground: #64748B;
+  --accent: #1E2535;
+  --accent-foreground: #F1F5F9;
+  --destructive: #EF4444;
+  --destructive-foreground: #F1F5F9;
+  --border: #1E2535;
+  --input: #1E2535;
+  --ring: #818CF8;
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--tx-primary);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+
+.main-content {
+  margin-left: 260px;
+  margin-top: 56px;
+  min-height: calc(100vh - 56px);
+  transition: margin-left 0.2s ease;
+}
+
+.main-content.sidebar-collapsed {
+  margin-left: 72px;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    margin-top: 56px;
+  }
+}
+
+/* ── Scrollbars ──────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1E2535;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2D3548;
+}
+
+/* ── Pulse animation for live indicator ──────────────────────────────────── */
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-pulse-live {
+  animation: pulse-live 2s ease-in-out infinite;
+}
+
+/* ── Status badge utility classes ────────────────────────────────────────── */
+
+.badge-success {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.badge-failed {
+  background: var(--status-failed-bg);
+  color: var(--status-failed-text);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.badge-pending {
+  background: var(--status-pending-bg);
+  color: var(--status-pending-text);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.badge-skipped {
+  background: var(--status-skipped-bg);
+  color: var(--status-skipped-text);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+}

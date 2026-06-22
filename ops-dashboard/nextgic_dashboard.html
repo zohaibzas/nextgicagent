@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nextgic · AI Operations Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f1117;color:#e2e8f0;font-family:system-ui,sans-serif;font-size:14px;min-height:100vh;padding:16px}
+
+/* Top bar */
+.top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid #1e2535;flex-wrap:wrap;gap:10px}
+.title{font-size:16px;font-weight:600;color:#f1f5f9;display:flex;align-items:center;gap:8px}
+.live-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite;flex-shrink:0}
+.live-dot.offline{background:#ef4444;animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select{background:#1e2535;border:1px solid #2d3748;color:#e2e8f0;padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer}
+input[type=date]{background:#1e2535;border:1px solid #2d3748;color:#e2e8f0;padding:5px 10px;border-radius:6px;font-size:12px}
+.btn{background:#1e2535;border:1px solid #374151;color:#94a3b8;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
+.btn:hover{background:#2d3748;color:#e2e8f0}
+.api-url{font-size:11px;color:#475569;font-family:monospace;background:#12161f;padding:4px 10px;border-radius:6px;border:1px solid #1e2535}
+
+/* Tabs */
+.tab-bar{display:flex;gap:2px;margin-bottom:16px;background:#1a1f2e;border-radius:8px;padding:3px;width:fit-content;border:1px solid #1e2535}
+.tab{font-size:12px;padding:5px 14px;border-radius:5px;border:none;background:transparent;color:#64748b;cursor:pointer;font-weight:500;transition:all .15s}
+.tab.active{background:#0f1117;color:#e2e8f0;border:1px solid #2d3748}
+
+/* KPIs */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.kpi{background:#1a1f2e;border:1px solid #1e2535;border-radius:10px;padding:14px 16px;transition:border-color .2s}
+.kpi:hover{border-color:#2d3748}
+.kpi .label{font-size:11px;color:#64748b;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.kpi .val{font-size:24px;font-weight:700;color:#f1f5f9;line-height:1;font-variant-numeric:tabular-nums}
+.kpi .sub{font-size:11px;margin-top:4px;color:#475569}
+.kpi.success .val{color:#22c55e}
+.kpi.danger .val{color:#ef4444}
+.kpi.warn .val{color:#f59e0b}
+
+/* Panels */
+.main-grid{display:grid;grid-template-columns:1fr 300px;gap:14px;margin-bottom:14px}
+.section-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.panel{background:#1a1f2e;border:1px solid #1e2535;border-radius:10px;padding:14px 16px}
+.panel h2{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.full-panel{grid-column:1/-1}
+
+/* Feed table */
+table{width:100%;border-collapse:collapse}
+thead th{font-size:11px;color:#475569;font-weight:500;text-align:left;padding:6px 8px;border-bottom:1px solid #1e2535}
+tbody tr{border-bottom:1px solid #12161f;transition:background .15s}
+tbody tr:hover{background:#1e2535}
+td{padding:7px 8px;font-size:12px;color:#cbd5e1;vertical-align:middle}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge.success{background:#052e16;color:#22c55e}
+.badge.failed,.badge.fail{background:#2d0a0a;color:#ef4444}
+.badge.running,.badge.pending,.badge.skipped,.badge.skip{background:#1c1a05;color:#f59e0b}
+.badge.info{background:#0c1a2e;color:#38bdf8}
+.badge.warn{background:#1c1405;color:#f59e0b}
+
+/* Agent health */
+.agent-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #12161f}
+.agent-row:last-child{border-bottom:none}
+.agent-name{font-weight:500;color:#e2e8f0;font-size:13px;display:flex;align-items:center;gap:7px}
+.health-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.health-dot.green{background:#22c55e;box-shadow:0 0 4px #22c55e80}
+.health-dot.amber{background:#f59e0b;box-shadow:0 0 4px #f59e0b80}
+.health-dot.red{background:#ef4444;box-shadow:0 0 4px #ef444480}
+.agent-stats{display:flex;gap:14px;font-size:11px;color:#64748b}
+.agent-stats span{display:flex;flex-direction:column;align-items:flex-end}
+.agent-stats b{color:#94a3b8;font-size:12px}
+
+/* Errors */
+.error-row{background:#1a0a0a;border:1px solid #3b0e0e;border-radius:8px;padding:10px 12px;margin-bottom:8px}
+.error-row:last-child{margin-bottom:0}
+.error-msg{color:#fca5a5;font-size:12px;margin-bottom:4px;font-weight:500;word-break:break-word}
+.error-meta{font-size:11px;color:#64748b;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.error-actions{display:flex;gap:6px;flex-shrink:0}
+.retry-btn{background:#1e2535;border:1px solid #374151;color:#94a3b8;padding:2px 8px;border-radius:4px;font-size:11px;cursor:pointer;transition:all .15s}
+.retry-btn:hover{background:#2d3748;color:#e2e8f0}
+.resolve-btn{background:#052e16;border:1px solid #166534;color:#22c55e;padding:2px 8px;border-radius:4px;font-size:11px;cursor:pointer;transition:all .15s}
+
+/* Logs */
+.log-line{padding:5px 8px;border-radius:4px;margin-bottom:3px;font-size:11px;font-family:monospace;display:flex;gap:10px;align-items:flex-start}
+.log-line.INFO,.log-line.info{background:#0c1a2e}
+.log-line.WARNING,.log-line.warn{background:#1c1405}
+.log-line.ERROR,.log-line.error{background:#1a0808}
+.log-line.DEBUG,.log-line.debug{background:#12161f}
+.log-tag{font-weight:700;min-width:56px;flex-shrink:0}
+.log-tag.INFO,.log-tag.info{color:#38bdf8}
+.log-tag.WARNING,.log-tag.warn{color:#f59e0b}
+.log-tag.ERROR,.log-tag.error{color:#ef4444}
+.log-tag.DEBUG,.log-tag.debug{color:#475569}
+.log-agent{color:#7c3aed;min-width:90px;flex-shrink:0}
+.log-msg{color:#94a3b8;flex:1;white-space:pre-wrap;word-break:break-word}
+
+/* DB / workflow */
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #1e2535;font-size:12px}
+.stat-row:last-child{border-bottom:none}
+.stat-key{color:#64748b}
+.stat-val{font-weight:500;font-family:monospace;color:#e2e8f0}
+.db-table{width:100%;border-collapse:collapse}
+.db-table th{font-size:11px;color:#475569;text-align:left;padding:5px 8px;border-bottom:1px solid #1e2535;font-weight:500}
+.db-table td{font-size:11px;padding:6px 8px;border-bottom:1px solid #12161f;color:#94a3b8;font-family:monospace}
+.db-table td.txt{font-family:system-ui;color:#e2e8f0}
+.db-table tr:last-child td{border-bottom:none}
+
+/* Workflow map */
+.flow-wrap{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;padding:1rem 0}
+.flow-node{background:#1e2535;border:1px solid #2d3748;border-radius:8px;padding:10px 14px;text-align:center;min-width:90px}
+.fn-icon{font-size:20px;color:#818cf8;margin-bottom:4px}
+.fn-title{font-size:12px;font-weight:500;color:#e2e8f0}
+.fn-sub{font-size:10px;color:#475569;margin-top:2px}
+.flow-arrow{font-size:18px;color:#374151;padding:0 2px}
+.flow-branch{display:flex;flex-direction:column;gap:6px}
+.flow-branch-node{background:#1e2535;border:1px solid #2d3748;border-radius:6px;padding:7px 12px;font-size:11px;font-weight:500;display:flex;align-items:center;gap:6px;color:#e2e8f0}
+.tool-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.tool-card{background:#1a1f2e;border:1px solid #1e2535;border-radius:8px;padding:12px}
+.tool-card h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.tool-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #12161f;font-size:12px}
+.tool-row:last-child{border-bottom:none}
+.tool-name{color:#94a3b8;font-family:monospace;font-size:11px}
+
+/* Scrolls */
+.scroll{max-height:240px;overflow-y:auto}
+.scroll::-webkit-scrollbar{width:4px}
+.scroll::-webkit-scrollbar-track{background:transparent}
+.scroll::-webkit-scrollbar-thumb{background:#2d3748;border-radius:2px}
+.hidden{display:none}
+
+/* Loading / empty states */
+.loading{padding:24px;text-align:center;color:#475569;font-size:12px}
+.loading i{font-size:20px;display:block;margin-bottom:6px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{padding:20px;text-align:center;color:#475569;font-size:12px}
+.empty i{font-size:22px;display:block;margin-bottom:6px;color:#374151}
+
+/* Status pill */
+.status-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px}
+.status-pill.online{background:#052e16;color:#22c55e;border:1px solid #166534}
+.status-pill.offline{background:#2d0a0a;color:#ef4444;border:1px solid #7f1d1d}
+
+/* Responsive */
+@media(max-width:900px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .main-grid{grid-template-columns:1fr}
+  .section-row{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="title">
+    <div class="live-dot" id="liveDot"></div>
+    Nextgic &middot; AI Operations Dashboard
+    <span id="apiStatus" class="status-pill offline" style="margin-left:8px;font-size:10px">
+      <i class="ti ti-plug-off" style="font-size:11px"></i> Connecting&hellip;
+    </span>
+  </div>
+  <div class="filters">
+    <input type="date" id="fDate">
+    <select id="fAgent" onchange="applyFilters()">
+      <option value="all">All Agents</option>
+      <option value="oos">OOS</option>
+      <option value="duplicate">Duplicate</option>
+      <option value="new_product">New Product</option>
+      <option value="unknown">Intake / Unknown</option>
+    </select>
+    <select id="fStatus" onchange="applyFilters()">
+      <option value="all">All Status</option>
+      <option value="success">Success</option>
+      <option value="failed">Failed</option>
+      <option value="skipped">Skipped</option>
+    </select>
+    <span class="api-url" id="apiUrlLabel">http://localhost:8000</span>
+    <button class="btn" onclick="refreshAll()">
+      <i class="ti ti-refresh" id="refreshIcon"></i> Refresh
+    </button>
+  </div>
+</div>
+
+<!-- KPI CARDS -->
+<div class="kpi-grid" id="kpiGrid">
+  <div class="kpi"><div class="label"><i class="ti ti-loader"></i>Loading…</div><div class="val">—</div></div>
+  <div class="kpi"><div class="label"><i class="ti ti-loader"></i>Loading…</div><div class="val">—</div></div>
+  <div class="kpi"><div class="label"><i class="ti ti-loader"></i>Loading…</div><div class="val">—</div></div>
+  <div class="kpi"><div class="label"><i class="ti ti-loader"></i>Loading…</div><div class="val">—</div></div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <button class="tab active" onclick="showTab('activity',this)">Activity feed</button>
+  <button class="tab" onclick="showTab('agents',this)">Agent health</button>
+  <button class="tab" onclick="showTab('db',this)">DB inspector</button>
+  <button class="tab" onclick="showTab('workflow',this)">Workflow map</button>
+  <button class="tab" onclick="showTab('logs',this)">Logs</button>
+</div>
+
+<!-- ACTIVITY TAB -->
+<div id="tab-activity">
+  <div class="main-grid">
+    <div class="panel">
+      <h2><i class="ti ti-activity"></i> Live Activity Feed
+        <span style="margin-left:auto;font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:#475569">job_log table</span>
+      </h2>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Time</th><th>Agent</th><th>Task</th><th>Product / Input</th><th>Status</th><th>Duration</th><th>WA Msg ID</th><th></th></tr></thead>
+          <tbody id="feedBody"><tr><td colspan="8"><div class="loading"><i class="ti ti-loader"></i>Fetching from database…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <h2><i class="ti ti-robot"></i> Agent Health</h2>
+      <div id="agentHealthMain"><div class="loading"><i class="ti ti-loader"></i>Loading…</div></div>
+    </div>
+  </div>
+  <div class="section-row">
+    <div class="panel">
+      <h2><i class="ti ti-chart-bar"></i> Tasks by agent</h2>
+      <div style="position:relative;height:180px"><canvas id="barChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2><i class="ti ti-trending-up"></i> Hourly success rate</h2>
+      <div style="position:relative;height:180px"><canvas id="lineChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- AGENTS TAB -->
+<div id="tab-agents" class="hidden">
+  <div class="section-row">
+    <div class="panel">
+      <h2><i class="ti ti-robot"></i> Agent health — detail</h2>
+      <div id="agentHealthDetail"><div class="loading"><i class="ti ti-loader"></i>Loading…</div></div>
+    </div>
+    <div class="panel">
+      <h2><i class="ti ti-alert-triangle"></i> Error center
+        <span style="margin-left:auto;font-size:10px;font-weight:400;text-transform:none;letter-spacing:0">error_msg ≠ null</span>
+      </h2>
+      <div id="errorCenter" class="scroll" style="max-height:240px"><div class="loading"><i class="ti ti-loader"></i>Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- DB TAB -->
+<div id="tab-db" class="hidden">
+  <div class="section-row">
+    <div class="panel">
+      <h2><i class="ti ti-database"></i> DB overview — nextgic_agent.db</h2>
+      <div id="dbOverview"><div class="loading"><i class="ti ti-loader"></i>Loading…</div></div>
+    </div>
+    <div class="panel">
+      <h2><i class="ti ti-ban"></i> Dedup log — processed_message</h2>
+      <div id="dedupLog" class="scroll"><div class="loading"><i class="ti ti-loader"></i>Loading…</div></div>
+    </div>
+    <div class="panel full-panel">
+      <h2><i class="ti ti-package"></i> Product cache — TTL 60 min</h2>
+      <table class="db-table" id="cacheTable"></table>
+    </div>
+  </div>
+</div>
+
+<!-- WORKFLOW MAP TAB (static — architecture doesn't change) -->
+<div id="tab-workflow" class="hidden">
+  <div class="panel">
+    <h2><i class="ti ti-sitemap"></i> Workflow architecture</h2>
+    <div class="flow-wrap">
+      <div class="flow-node"><div class="fn-icon"><i class="ti ti-brand-whatsapp"></i></div><div class="fn-title">WhatsApp</div><div class="fn-sub">image + text</div></div>
+      <div class="flow-arrow"><i class="ti ti-arrow-right"></i></div>
+      <div class="flow-node" style="border-color:#4f46e5"><div class="fn-icon"><i class="ti ti-mail-forward"></i></div><div class="fn-title">Intake agent</div><div class="fn-sub">classify_task()</div></div>
+      <div class="flow-arrow"><i class="ti ti-arrow-right"></i></div>
+      <div class="flow-branch">
+        <div class="flow-branch-node" style="border-color:#166534;color:#22c55e"><i class="ti ti-package-off"></i> OOS agent</div>
+        <div class="flow-branch-node" style="border-color:#854d0e;color:#f59e0b"><i class="ti ti-copy"></i> Duplicate agent</div>
+        <div class="flow-branch-node" style="border-color:#1e40af;color:#60a5fa"><i class="ti ti-plus"></i> New product agent</div>
+      </div>
+      <div class="flow-arrow"><i class="ti ti-arrow-right"></i></div>
+      <div class="flow-node" style="border-color:#166534"><div class="fn-icon" style="color:#22c55e"><i class="ti ti-world"></i></div><div class="fn-title">WooCommerce</div><div class="fn-sub">REST API</div></div>
+      <div class="flow-arrow"><i class="ti ti-arrow-right"></i></div>
+      <div class="flow-node"><div class="fn-icon" style="color:#64748b"><i class="ti ti-database"></i></div><div class="fn-title">SQLite DB</div><div class="fn-sub">job_log · dedup · cache</div></div>
+    </div>
+    <div class="tool-grid">
+      <div class="tool-card">
+        <h3 style="color:#818cf8">Vision tool calls</h3>
+        <div class="tool-row"><span class="tool-name">vision.classify_task()</span><span class="badge info">Intake</span></div>
+        <div class="tool-row"><span class="tool-name">vision.extract_oos_data()</span><span class="badge success">OOS</span></div>
+        <div class="tool-row"><span class="tool-name">vision.extract_duplicate_data()</span><span class="badge warn">Duplicate</span></div>
+        <div class="tool-row"><span class="tool-name">vision.extract_new_product_data()</span><span class="badge info">New product</span></div>
+        <div class="tool-row"><span class="tool-name">_looks_like_screenshot()</span><span class="badge info">New product</span></div>
+        <div class="tool-row"><span class="tool-name">vision.parse_json_response()</span><span class="badge info">All agents</span></div>
+      </div>
+      <div class="tool-card">
+        <h3 style="color:#22c55e">WooCommerce calls</h3>
+        <div class="tool-row"><span class="tool-name">wc.search_product()</span><span class="badge warn">OOS · Dup</span></div>
+        <div class="tool-row"><span class="tool-name">wc.search_product_by_sku()</span><span class="badge success">OOS</span></div>
+        <div class="tool-row"><span class="tool-name">wc.set_stock_status()</span><span class="badge success">OOS</span></div>
+        <div class="tool-row"><span class="tool-name">wc.get_product_by_id()</span><span class="badge warn">Duplicate</span></div>
+        <div class="tool-row"><span class="tool-name">wc.duplicate_product()</span><span class="badge warn">Duplicate</span></div>
+        <div class="tool-row"><span class="tool-name">wc.create_product()</span><span class="badge info">New product</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGS TAB -->
+<div id="tab-logs" class="hidden">
+  <div class="panel">
+    <h2><i class="ti ti-terminal-2"></i> Structured logs
+      <span style="margin-left:auto;font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:#475569">logs/agent.log</span>
+    </h2>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+      <select id="logLevel" onchange="loadLogs()" style="background:#1e2535;border:1px solid #2d3748;color:#e2e8f0;padding:4px 8px;border-radius:6px;font-size:12px">
+        <option>All levels</option><option>INFO</option><option>WARNING</option><option>ERROR</option><option>DEBUG</option>
+      </select>
+      <select id="logAgent" onchange="loadLogs()" style="background:#1e2535;border:1px solid #2d3748;color:#e2e8f0;padding:4px 8px;border-radius:6px;font-size:12px">
+        <option value="">All agents</option>
+        <option>OOS</option><option>Duplicate</option><option>New product</option><option>Intake</option>
+      </select>
+      <input id="logSearch" placeholder="Search logs…" oninput="loadLogs()" style="background:#1e2535;border:1px solid #2d3748;color:#e2e8f0;padding:4px 8px;border-radius:6px;font-size:12px;flex:1;min-width:160px">
+      <span style="font-size:11px;color:#475569" id="logCount"></span>
+    </div>
+    <div id="logViewer" class="scroll" style="max-height:380px">
+      <div class="loading"><i class="ti ti-loader"></i>Loading logs…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Configuration ─────────────────────────────────────────────────────────────
+const API_BASE = 'http://localhost:8000';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let allJobs = [];
+let agentsData = [];
+let isConnected = false;
+let barInst, lineInst;
+let autoRefreshTimer = null;
+
+// ── Initialise ────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Set today's date as default
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('fDate').value = today;
+  document.getElementById('apiUrlLabel').textContent = API_BASE;
+
+  checkConnection().then(() => {
+    refreshAll();
+    // Auto-refresh every 30 seconds
+    autoRefreshTimer = setInterval(refreshAll, 30000);
+  });
+});
+
+// ── Connection check ──────────────────────────────────────────────────────────
+async function checkConnection() {
+  try {
+    const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      setConnected(true);
+    } else {
+      setConnected(false);
+    }
+  } catch {
+    setConnected(false);
+  }
+}
+
+function setConnected(ok) {
+  isConnected = ok;
+  const dot = document.getElementById('liveDot');
+  const pill = document.getElementById('apiStatus');
+  if (ok) {
+    dot.className = 'live-dot';
+    pill.className = 'status-pill online';
+    pill.innerHTML = '<i class="ti ti-plug" style="font-size:11px"></i> Connected to API';
+  } else {
+    dot.className = 'live-dot offline';
+    pill.className = 'status-pill offline';
+    pill.innerHTML = '<i class="ti ti-plug-off" style="font-size:11px"></i> API Offline — start uvicorn';
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtTime(isoStr) {
+  if (!isoStr) return '—';
+  const d = new Date(isoStr);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function fmtDur(sec) {
+  if (sec === null || sec === undefined) return '—';
+  return sec < 60 ? `${parseFloat(sec).toFixed(1)}s` : `${(sec/60).toFixed(1)}m`;
+}
+
+function statusBadge(s) {
+  const map = { success: 'success', failed: 'failed', skipped: 'skipped' };
+  return `<span class="badge ${map[s] || 'info'}">${s}</span>`;
+}
+
+function levelBadge(l) {
+  const map = { INFO: 'info', WARNING: 'warn', ERROR: 'failed', DEBUG: 'skip' };
+  return `<span class="badge ${map[l] || 'info'}">${l}</span>`;
+}
+
+async function apiFetch(path) {
+  const res = await fetch(`${API_BASE}${path}`, { signal: AbortSignal.timeout(10000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function buildQuery(params) {
+  return '?' + Object.entries(params)
+    .filter(([, v]) => v && v !== 'all')
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+    .join('&');
+}
+
+function spinRefresh(on) {
+  const icon = document.getElementById('refreshIcon');
+  icon.className = on ? 'ti ti-loader' : 'ti ti-refresh';
+  icon.style.animation = on ? 'spin .7s linear infinite' : '';
+}
+
+// ── Main refresh ──────────────────────────────────────────────────────────────
+async function refreshAll() {
+  spinRefresh(true);
+  await checkConnection();
+  if (!isConnected) {
+    spinRefresh(false);
+    showOfflineState();
+    return;
+  }
+  await Promise.allSettled([
+    loadKPIs(),
+    loadJobs(),
+    loadAgents(),
+    loadErrors(),
+    loadCharts(),
+    loadDB(),
+  ]);
+  spinRefresh(false);
+}
+
+function applyFilters() {
+  renderFeed(allJobs);
+  loadAgents();
+  loadErrors();
+  loadCharts();
+  loadKPIs();
+  loadJobs();
+}
+
+function showOfflineState() {
+  document.getElementById('feedBody').innerHTML =
+    `<tr><td colspan="8"><div class="empty"><i class="ti ti-wifi-off"></i>Cannot reach ${API_BASE}<br><small style="margin-top:4px;display:block">Run: <code>uvicorn main:app --port 8000</code></small></div></td></tr>`;
+  document.getElementById('kpiGrid').innerHTML =
+    `<div class="kpi"><div class="label"><i class="ti ti-wifi-off"></i>API Offline</div><div class="val" style="font-size:14px;color:#ef4444">Cannot connect</div><div class="sub">Start the backend first</div></div>`;
+}
+
+// ── KPI Cards ─────────────────────────────────────────────────────────────────
+async function loadKPIs() {
+  const date = document.getElementById('fDate').value;
+  const agent = document.getElementById('fAgent').value;
+  const status = document.getElementById('fStatus').value;
+  try {
+    const d = await apiFetch('/dashboard/kpis' + buildQuery({ date, agent, status }));
+    const kpis = [
+      { label: 'Total tasks',    icon: 'ti-list-check',      val: d.total_tasks,   sub: 'job_log rows',           cls: '' },
+      { label: 'Success rate',   icon: 'ti-circle-check',    val: d.success_rate + '%', sub: d.success + ' succeeded', cls: 'success' },
+      { label: 'Failed',         icon: 'ti-circle-x',        val: d.failed,        sub: d.failed + ' errors logged', cls: d.failed > 0 ? 'danger' : '' },
+      { label: 'Open errors',    icon: 'ti-alert-triangle',  val: d.open_errors,   sub: 'needs attention',        cls: d.open_errors > 0 ? 'warn' : '' },
+      { label: 'Avg duration',   icon: 'ti-clock',           val: fmtDur(d.avg_duration), sub: 'per task',         cls: '' },
+      { label: 'Dedup blocked',  icon: 'ti-ban',             val: d.dedup_blocked, sub: 'processed_message',      cls: '' },
+      { label: 'Cache entries',  icon: 'ti-database',        val: d.cache_hits,    sub: 'product_cache TTL 60m',  cls: '' },
+      { label: 'WA messages',    icon: 'ti-brand-whatsapp',  val: d.wa_messages,   sub: 'unique msg IDs',         cls: '' },
+    ];
+    document.getElementById('kpiGrid').innerHTML = kpis.map(k => `
+      <div class="kpi ${k.cls}">
+        <div class="label"><i class="ti ${k.icon}"></i>${k.label}</div>
+        <div class="val">${k.val}</div>
+        <div class="sub">${k.sub}</div>
+      </div>`).join('');
+  } catch (e) {
+    document.getElementById('kpiGrid').innerHTML =
+      `<div class="kpi danger"><div class="label"><i class="ti ti-alert-circle"></i>KPI load failed</div><div class="val" style="font-size:13px">Error</div><div class="sub">${e.message}</div></div>`;
+  }
+}
+
+// ── Activity Feed ─────────────────────────────────────────────────────────────
+async function loadJobs() {
+  const date = document.getElementById('fDate').value;
+  const agent = document.getElementById('fAgent').value;
+  const status = document.getElementById('fStatus').value;
+  try {
+    allJobs = await apiFetch('/dashboard/jobs' + buildQuery({ date, agent, status, limit: 100 }));
+    renderFeed(allJobs);
+  } catch (e) {
+    document.getElementById('feedBody').innerHTML =
+      `<tr><td colspan="8"><div class="empty"><i class="ti ti-alert-circle"></i>Failed to load jobs: ${e.message}</div></td></tr>`;
+  }
+}
+
+function renderFeed(jobs) {
+  if (!jobs.length) {
+    document.getElementById('feedBody').innerHTML =
+      `<tr><td colspan="8"><div class="empty"><i class="ti ti-inbox"></i>No tasks recorded yet</div></td></tr>`;
+    return;
+  }
+  document.getElementById('feedBody').innerHTML = jobs.slice(0, 50).map(j => {
+    const product = j.product || j.input_text?.slice(0, 40) || '—';
+    const msgId = j.whatsapp_msg_id ? `<span style="font-family:monospace;font-size:10px">${j.whatsapp_msg_id.slice(0,16)}</span>` : '—';
+    const retryBtn = j.status === 'failed'
+      ? `<button class="retry-btn" title="Job ID: ${j.id}"><i class="ti ti-refresh"></i> retry</button>`
+      : '';
+    return `<tr>
+      <td style="color:#475569;white-space:nowrap">${fmtTime(j.created_at)}</td>
+      <td><span style="color:#818cf8;font-weight:500"><i class="ti ${j.agent_icon}" style="font-size:12px"></i> ${j.agent_label}</span></td>
+      <td style="color:#94a3b8">${j.task_type || '—'}</td>
+      <td style="color:#94a3b8;font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${product}">${product}</td>
+      <td>${statusBadge(j.status)}</td>
+      <td style="color:#475569;white-space:nowrap">${fmtDur(j.duration_sec)}</td>
+      <td>${msgId}</td>
+      <td>${retryBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Agent Health ──────────────────────────────────────────────────────────────
+async function loadAgents() {
+  const date = document.getElementById('fDate').value;
+  try {
+    agentsData = await apiFetch('/dashboard/agents' + buildQuery({ date }));
+    renderAgentHealth('agentHealthMain');
+    renderAgentHealth('agentHealthDetail');
+  } catch (e) {
+    ['agentHealthMain', 'agentHealthDetail'].forEach(id => {
+      document.getElementById(id).innerHTML =
+        `<div class="empty"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
+    });
+  }
+}
+
+function renderAgentHealth(elId) {
+  const el = document.getElementById(elId);
+  if (!agentsData.length) {
+    el.innerHTML = `<div class="empty"><i class="ti ti-inbox"></i>No agent data yet</div>`;
+    return;
+  }
+  el.innerHTML = agentsData.map(a => {
+    const lastSeen = a.last_active
+      ? new Date(a.last_active).toLocaleString()
+      : 'Never';
+    return `<div class="agent-row">
+      <div class="agent-name">
+        <div class="health-dot ${a.health}"></div>
+        <i class="ti ${a.icon}" style="font-size:13px"></i>
+        ${a.label} agent
+        ${a.total === 0 ? '<span style="font-size:10px;color:#374151;margin-left:4px">no data</span>' : ''}
+      </div>
+      <div class="agent-stats">
+        <span><b>${a.total}</b>tasks</span>
+        <span><b>${a.success_rate}%</b>success</span>
+        <span><b>${fmtDur(a.avg_duration)}</b>avg</span>
+        <span><b style="color:${a.failed > 0 ? '#ef4444' : '#22c55e'}">${a.failed}</b>errors</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Errors ────────────────────────────────────────────────────────────────────
+async function loadErrors() {
+  const date = document.getElementById('fDate').value;
+  try {
+    const errors = await apiFetch('/dashboard/errors' + buildQuery({ date, limit: 20 }));
+    renderErrors(errors);
+  } catch (e) {
+    document.getElementById('errorCenter').innerHTML =
+      `<div class="empty"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
+  }
+}
+
+function renderErrors(errors) {
+  const el = document.getElementById('errorCenter');
+  if (!errors.length) {
+    el.innerHTML = `<div class="empty"><i class="ti ti-circle-check" style="color:#22c55e"></i>No errors — all clear!</div>`;
+    return;
+  }
+  el.innerHTML = errors.map(e => `
+    <div class="error-row" id="err-${e.id}">
+      <div class="error-msg"><i class="ti ti-alert-circle"></i> ${e.error_msg || 'Unknown error'}</div>
+      <div class="error-meta">
+        <span>
+          <span style="color:#7c3aed">${e.agent_label}</span>
+          &middot; ${fmtTime(e.created_at)}
+          &middot; <span style="font-family:monospace;font-size:10px">${(e.whatsapp_msg_id || '').slice(0,16) || 'no msg id'}</span>
+          ${e.duration_sec ? `&middot; ${fmtDur(e.duration_sec)}` : ''}
+        </span>
+        <div class="error-actions">
+          <button class="retry-btn" title="Job #${e.id}"><i class="ti ti-refresh"></i> retry</button>
+          <button class="resolve-btn" onclick="resolveError(${e.id})"><i class="ti ti-check"></i> resolve</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function resolveError(id) {
+  const row = document.getElementById('err-' + id);
+  if (row) {
+    row.style.opacity = '0.3';
+    row.querySelectorAll('button').forEach(b => b.disabled = true);
+  }
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+async function loadCharts() {
+  const date = document.getElementById('fDate').value;
+  try {
+    const d = await apiFetch('/dashboard/charts' + buildQuery({ date }));
+    renderCharts(d);
+  } catch (e) {
+    console.warn('Charts failed:', e.message);
+  }
+}
+
+function renderCharts(d) {
+  const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#e879f9'];
+  const gridColor = '#1e2535';
+  const tickColor = '#475569';
+  const tickFont = { size: 11 };
+
+  // Bar chart — tasks by agent
+  const labels = d.tasks_by_agent.map(x => x.label);
+  const counts = d.tasks_by_agent.map(x => x.count);
+  if (barInst) barInst.destroy();
+  barInst = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'Tasks', data: counts, backgroundColor: COLORS, borderWidth: 0, borderRadius: 3 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: tickColor, font: tickFont }, grid: { color: gridColor } },
+        y: { beginAtZero: true, ticks: { color: tickColor, font: tickFont }, grid: { color: gridColor } }
+      }
+    }
+  });
+
+  // Line chart — hourly success rate
+  const hours = d.hourly_success.map(x => x.hour);
+  const rates = d.hourly_success.map(x => x.rate);
+  if (lineInst) lineInst.destroy();
+
+  if (!hours.length) {
+    // No recent data — show empty state
+    const ctx = document.getElementById('lineChart').getContext('2d');
+    ctx.fillStyle = '#475569';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('No data in last 12 hours', 150, 90);
+    return;
+  }
+
+  lineInst = new Chart(document.getElementById('lineChart'), {
+    type: 'line',
+    data: {
+      labels: hours,
+      datasets: [{
+        label: 'Success %', data: rates,
+        borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,.08)',
+        tension: 0.4, pointRadius: 3, pointBackgroundColor: '#22c55e',
+        borderWidth: 2, fill: true
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: tickColor, font: tickFont }, grid: { color: gridColor } },
+        y: {
+          min: 0, max: 100,
+          ticks: { color: tickColor, font: tickFont, callback: v => v + '%' },
+          grid: { color: gridColor }
+        }
+      }
+    }
+  });
+}
+
+// ── DB Inspector ──────────────────────────────────────────────────────────────
+async function loadDB() {
+  try {
+    const d = await apiFetch('/dashboard/db');
+    renderDB(d);
+  } catch (e) {
+    document.getElementById('dbOverview').innerHTML =
+      `<div class="empty"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
+  }
+}
+
+function renderDB(d) {
+  const s = d.stats;
+  document.getElementById('dbOverview').innerHTML = `
+    <div class="stat-row"><span class="stat-key">Engine</span><span class="stat-val">SQLite → PostgreSQL ready</span></div>
+    <div class="stat-row"><span class="stat-key">job_log rows</span><span class="stat-val">${s.total}</span></div>
+    <div class="stat-row"><span class="stat-key">&mdash; success</span><span class="stat-val" style="color:#22c55e">${s.success}</span></div>
+    <div class="stat-row"><span class="stat-key">&mdash; failed</span><span class="stat-val" style="color:#ef4444">${s.failed}</span></div>
+    <div class="stat-row"><span class="stat-key">&mdash; skipped</span><span class="stat-val" style="color:#64748b">${s.skipped}</span></div>
+    <div class="stat-row"><span class="stat-key">processed_message rows</span><span class="stat-val">${s.processed_message_rows}</span></div>
+    <div class="stat-row"><span class="stat-key">product_cache rows</span><span class="stat-val">${s.product_cache_rows}</span></div>
+    <div class="stat-row"><span class="stat-key">cache TTL</span><span class="stat-val">60 min</span></div>`;
+
+  // Dedup log
+  if (!d.dedup_log.length) {
+    document.getElementById('dedupLog').innerHTML = `<div class="empty"><i class="ti ti-inbox"></i>No processed messages yet</div>`;
+  } else {
+    document.getElementById('dedupLog').innerHTML = d.dedup_log.map(p => `
+      <div class="stat-row">
+        <span class="stat-key" style="font-family:monospace;font-size:11px">${(p.message_id || '').slice(0, 24)}</span>
+        <span>${p.success
+          ? '<span class="badge success">success</span>'
+          : '<span class="badge failed">failed</span>'}</span>
+      </div>`).join('');
+  }
+
+  // Product cache
+  if (!d.product_cache.length) {
+    document.getElementById('cacheTable').innerHTML =
+      `<tr><td colspan="4"><div class="empty"><i class="ti ti-database-off"></i>Cache is empty</div></td></tr>`;
+  } else {
+    document.getElementById('cacheTable').innerHTML =
+      `<thead><tr><th>product_name</th><th>product_id</th><th>cached_at</th><th>TTL left</th></tr></thead><tbody>` +
+      d.product_cache.map(c => {
+        const ttl = c.ttl_minutes_left;
+        const cls = ttl < 10 ? 'failed' : ttl < 20 ? 'pending' : 'success';
+        return `<tr>
+          <td class="txt">${c.product_name}</td>
+          <td>${c.product_id}</td>
+          <td>${c.cached_at ? new Date(c.cached_at).toLocaleTimeString() : '—'}</td>
+          <td><span class="badge ${cls}">${ttl}m</span></td>
+        </tr>`;
+      }).join('') + '</tbody>';
+  }
+}
+
+// ── Logs ──────────────────────────────────────────────────────────────────────
+async function loadLogs() {
+  const level  = document.getElementById('logLevel').value;
+  const agent  = document.getElementById('logAgent').value;
+  const search = document.getElementById('logSearch').value;
+  document.getElementById('logViewer').innerHTML =
+    `<div class="loading"><i class="ti ti-loader"></i>Fetching logs…</div>`;
+  try {
+    const entries = await apiFetch('/dashboard/logs' + buildQuery({ level, agent, search, limit: 200 }));
+    document.getElementById('logCount').textContent = `${entries.length} entries`;
+    if (!entries.length) {
+      document.getElementById('logViewer').innerHTML =
+        `<div class="empty"><i class="ti ti-search-off"></i>No logs match filters</div>`;
+      return;
+    }
+    const levelCls = { INFO: 'info', WARNING: 'warn', ERROR: 'error', DEBUG: 'debug' };
+    document.getElementById('logViewer').innerHTML = entries.map(l => `
+      <div class="log-line ${l.level}">
+        <span class="log-tag ${l.level}">${levelBadge(l.level)}</span>
+        <span class="log-agent">${l.agent || '—'}</span>
+        <span class="log-msg">${l.time} — ${escHtml(l.msg)}</span>
+      </div>`).join('');
+  } catch (e) {
+    document.getElementById('logViewer').innerHTML =
+      `<div class="empty"><i class="ti ti-alert-circle"></i>Failed to load logs: ${e.message}</div>`;
+  }
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function showTab(name, btn) {
+  ['activity', 'agents', 'db', 'workflow', 'logs'].forEach(t =>
+    document.getElementById('tab-' + t).classList.add('hidden')
+  );
+  document.getElementById('tab-' + name).classList.remove('hidden');
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Load logs only when tab is opened (lazy)
+  if (name === 'logs') loadLogs();
+}
+
+function refreshAll() {
+  spinRefresh(true);
+  checkConnection().then(() => {
+    if (!isConnected) { spinRefresh(false); showOfflineState(); return; }
+    Promise.allSettled([loadKPIs(), loadJobs(), loadAgents(), loadErrors(), loadCharts(), loadDB()])
+      .finally(() => spinRefresh(false));
+  });
+}
+</script>
+</body>
+</html>

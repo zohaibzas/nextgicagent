@@ -11,8 +11,9 @@ temp_uploads/
 processed_images/
 logs/
 node_modules/
+ops-dashboard/node_modules/
+ops-dashboard/.next/
 whatsapp/
-dashboard/
 *.psd
 *.docx
 spec_extracted.txt

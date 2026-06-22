@@ -1,0 +1,12 @@
+# Railway deploys from repo root (FastAPI)
+# Netlify: set Base directory = ops-dashboard
+
+[build]
+  base = "ops-dashboard"
+  command = "npm run build"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  NODE_VERSION = "20"
